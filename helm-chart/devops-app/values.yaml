@@ -1,0 +1,11 @@
+frontend:
+  replicaCount: 1
+  image:
+    repository: us-central1-docker.pkg.dev/project-ca8cfaa9-7c0a-424c-b9f/devops-repo/frontend
+    tag: "latest"
+
+backend:
+  replicaCount: 1
+  image:
+    repository: us-central1-docker.pkg.dev/project-ca8cfaa9-7c0a-424c-b9f/devops-repo/backend
+    tag: "latest"

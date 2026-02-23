@@ -1,0 +1,107 @@
+name: devops-task1-ci-cd
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGION: us-central1
+  CLUSTER_NAME: devops-gke
+  REPO_NAME: devops-repo
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+    - name: Build & Push Backend Image
+      run: |
+        SHA=${{ github.sha }}
+        IMAGE=$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/$REPO_NAME/backend:$SHA
+
+        docker build -t $IMAGE ./backend
+        docker push $IMAGE
+
+    - name: Build & Push Frontend Image
+      run: |
+        SHA=${{ github.sha }}
+        IMAGE=$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/$REPO_NAME/frontend:$SHA
+
+        docker build -t $IMAGE ./frontend
+        docker push $IMAGE
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+
+    - name: Update Helm values with new image tag
+      run: |
+        SHA=${{ github.sha }}
+        sed -i "s/tag: \"latest\"/tag: \"$SHA\"/g" helm-chart/devops-app/values.yaml
+
+    - name: Package Helm Chart
+      run: |
+        helm package helm-chart/devops-app
+
+    - name: Login to Helm OCI Registry
+      run: |
+        helm registry login $REGION-docker.pkg.dev \
+          -u oauth2accesstoken \
+          -p "$(gcloud auth print-access-token)"
+
+    - name: Push Helm Chart to Artifact Registry
+      run: |
+        helm push devops-app-0.1.0.tgz \
+          oci://$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/$REPO_NAME
+
+    - name: Check if GKE Cluster Exists
+      id: check_gke
+      run: |
+        if gcloud container clusters describe $CLUSTER_NAME \
+          --region $REGION \
+          --project ${{ secrets.GCP_PROJECT }} > /dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Terraform
+      if: steps.check_gke.outputs.exists == 'false'
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init & Apply (Create GKE if not exists)
+      if: steps.check_gke.outputs.exists == 'false'
+      run: |
+        cd terraform
+        terraform init
+        terraform apply -auto-approve \
+          -var="project_id=${{ secrets.GCP_PROJECT }}" \
+          -var="region=$REGION"
+
+    - name: Get GKE Credentials
+      run: |
+        gcloud container clusters get-credentials $CLUSTER_NAME \
+          --region $REGION \
+          --project ${{ secrets.GCP_PROJECT }}
+
+    - name: Pull Helm Chart from Artifact Registry
+      run: |
+        helm pull \
+          oci://$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/$REPO_NAME/devops-app \
+          --version 0.1.0
+
+    - name: Deploy Helm Release
+      run: |
+        helm upgrade --install devops-app devops-app-0.1.0.tgz
