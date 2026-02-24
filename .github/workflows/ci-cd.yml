@@ -10,16 +10,14 @@ env:
   MY_CLUSTER: devops-gke
   REPO_NAME: devops-repo
   PROJECT_ID: ${{ secrets.GCP_PROJECT }}
-
+  USE_GKE_GCLOUD_AUTH_PLUGIN: true  
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
 
     steps:
-
     - name: Checkout Repository
       uses: actions/checkout@v3
-
 
     - name: Build Backend Image
       run: |
@@ -39,7 +37,6 @@ jobs:
     - name: Setup gcloud CLI
       uses: google-github-actions/setup-gcloud@v2
 
-
     - name: Configure Docker for Artifact Registry
       run: |
         gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
@@ -48,7 +45,6 @@ jobs:
       run: |
         SHA=${{ github.sha }}
         IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/backend:$SHA
-
         docker tag backend:$SHA $IMAGE
         docker push $IMAGE
 
@@ -56,20 +52,20 @@ jobs:
       run: |
         SHA=${{ github.sha }}
         IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/frontend:$SHA
-
         docker tag frontend:$SHA $IMAGE
         docker push $IMAGE
+
     - name: Install Helm
       uses: azure/setup-helm@v3
 
     - name: Update Helm values with new image tag
       run: |
         SHA=${{ github.sha }}
-        sed -i "s/tag:.*/tag: \"$SHA\"/g" helm-chart/devops-app/values.yaml
+        sed -i "s|frontendImage:.*|frontendImage: $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/frontend:$SHA|g" helm-chart/devops-app/values.yaml
+        sed -i "s|backendImage:.*|backendImage: $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/backend:$SHA|g" helm-chart/devops-app/values.yaml
 
     - name: Package Helm Chart
-      run: |
-        helm package helm-chart/devops-app
+      run: helm package helm-chart/devops-app
 
     - name: Login to Helm OCI Registry
       run: |
@@ -82,20 +78,24 @@ jobs:
         helm push devops-app-0.1.0.tgz \
         oci://$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME
 
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
     - name: Check if GKE Cluster Exists
       run: |
-        if ! gcloud container clusters describe $my_cluster \
+        if ! gcloud container clusters describe $MY_CLUSTER \
           --region $REGION \
-          --project $PROJECT_ID
+          --project $PROJECT_ID > /dev/null 2>&1
         then
           echo "GKE cluster not found. Failing pipeline."
           exit 1
         fi
 
-
     - name: Get GKE Credentials
       run: |
-        gcloud container clusters get-credentials $my_cluster \
+        gcloud container clusters get-credentials $MY_CLUSTER \
           --region $REGION \
           --project $PROJECT_ID
 
@@ -103,8 +103,8 @@ jobs:
       run: |
         helm pull \
         oci://$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/devops-app \
-        --version 0.1.0
+        --version 0.1.0 --untar
 
     - name: Deploy Helm Release
       run: |
-        helm upgrade --install devops-app devops-app-0.1.0.tgz
+        helm upgrade --install devops-app ./devops-app
