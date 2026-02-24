@@ -1,17 +1,17 @@
 resource "google_container_cluster" "primary" {
-  name     = var.cluster_name
+  name     = var.my_cluster
   location = var.region
   project  = var.project_id
 
-  network    = var.network_name
-  subnetwork = var.subnetwork_name
+  network    = var.network
+  subnetwork = var.subnetwork
 
   remove_default_node_pool = true
   initial_node_count       = 1
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = var.pods_range_name
-    services_secondary_range_name = var.services_range_name
+    cluster_secondary_range_name  = var.pods_range
+    services_secondary_range_name = var.services_range
   }
 }
 

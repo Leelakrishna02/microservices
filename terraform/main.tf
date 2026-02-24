@@ -21,10 +21,10 @@ module "gke" {
 
   project_id   = var.project_id
   region       = var.region
-  cluster_name = var.cluster_name
+  my_cluster = var.cluster_name
 
-  network_name      = module.networking.network_name
-  subnetwork_name   = module.networking.subnetwork_name
-  pods_range_name   = module.networking.pods_range_name
-  services_range_name = module.networking.services_range_name
+  network      = module.networking.network
+  subnetwork   = module.networking.subnetwork
+  pods_range  = module.networking.pods_range
+  services_range = module.networking.services_range
 }

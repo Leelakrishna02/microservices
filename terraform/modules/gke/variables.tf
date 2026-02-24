@@ -6,22 +6,22 @@ variable "region" {
   type = string
 }
 
-variable "cluster_name" {
+variable "my_cluster" {
   type = string
 }
 
-variable "network_name" {
+variable "network" {
   type = string
 }
 
-variable "subnetwork_name" {
+variable "subnetwork" {
   type = string
 }
 
-variable "pods_range_name" {
+variable "pods_range" {
   type = string
 }
 
-variable "services_range_name" {
+variable "services_range" {
   type = string
 }
