@@ -7,7 +7,7 @@ on:
 
 env:
   REGION: us-central1
-  CLUSTER_NAME: devops-gke
+  MY_CLUSTER: devops-gke
   REPO_NAME: devops-repo
   PROJECT_ID: ${{ secrets.GCP_PROJECT }}
 
@@ -84,7 +84,7 @@ jobs:
 
     - name: Check if GKE Cluster Exists
       run: |
-        if ! gcloud container clusters describe $CLUSTER_NAME \
+        if ! gcloud container clusters describe $my_cluster \
           --region $REGION \
           --project $PROJECT_ID
         then
@@ -95,7 +95,7 @@ jobs:
 
     - name: Get GKE Credentials
       run: |
-        gcloud container clusters get-credentials $CLUSTER_NAME \
+        gcloud container clusters get-credentials $my_cluster \
           --region $REGION \
           --project $PROJECT_ID
 
