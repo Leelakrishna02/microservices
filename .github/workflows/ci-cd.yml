@@ -128,21 +128,24 @@ jobs:
 
       - name: Check if GKE Cluster Exists
         run: |
-          if ! gcloud container clusters describe ${{ env.MY_CLUSTER }} \
-            --region ${{ env.REGION }} \
-            --project ${{ env.PROJECT_ID }} > /dev/null 2>&1; then
-            echo "::error::GKE cluster '${{ env.MY_CLUSTER }}' not found. Failing pipeline."
-            exit 1
-          fi
+         if ! gcloud container clusters describe $MY_CLUSTER \
+          --region $REGION \
+          --project $PROJECT_ID > /dev/null 2>&1
+         then
+          echo "GKE cluster not found. Failing pipeline."
+          exit 1
+         fi
+
 
       - name: Install GKE Auth Plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+        run: |
+            gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials ${{ env.MY_CLUSTER }} \
-            --region ${{ env.REGION }} \
-            --project ${{ env.PROJECT_ID }}
+          gcloud container clusters get-credentials $MY_CLUSTER \
+          --region $REGION \
+          --project $PROJECT_ID
 
       - name: Install Helm
         uses: azure/setup-helm@v3
