@@ -38,13 +38,13 @@ jobs:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          BODY="${{ github.event.pull_request.body }}"
-          PATTERN='(PROJ|MYAPP|BACKEND)-[0-9]+'
-          TICKET=$(echo "$TITLE" | grep -oE "$PATTERN" | head -1)
+          PATTERN='(PROJ|MYAPP|BACKEND|VLS)-[0-9]+'
+          TICKET=$(echo "$PR_TITLE" | grep -oE "$PATTERN" | head -1)
           if [ -z "$TICKET" ]; then
-            TICKET=$(echo "$BODY" | grep -oE "$PATTERN" | head -1)
+            TICKET=$(echo "$PR_BODY" | grep -oE "$PATTERN" | head -1)
           fi
           if [ -z "$TICKET" ]; then
             echo "::error::No valid Jira ticket ID found in title or description."
