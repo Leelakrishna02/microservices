@@ -16,7 +16,7 @@ env:
 
 jobs:
 
-  
+  # ─── GATE ──────────────────────────────────────────────────────────
   validate-pr-description:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
